@@ -21,29 +21,29 @@ sequenceDiagram
     User->>Frontend: Types query & clicks send
     Frontend->>Frontend: Disable input, show typing indicator
     Frontend->>FastAPI: POST /api/query {query, session_id?}
-    
+
     FastAPI->>RAGSystem: query(query, session_id)
-    
+
     alt session_id provided
         RAGSystem->>SessionMgr: get_conversation_history(session_id)
         SessionMgr-->>RAGSystem: formatted history or None
     end
-    
+
     RAGSystem->>AIGen: generate_response(query, history, tools, tool_manager)
     AIGen->>Claude: POST messages.create() with tools
-    
+
     alt Claude decides to use tools
         Claude-->>AIGen: tool_use response
         AIGen->>ToolMgr: execute_tool(tool_name, **params)
         ToolMgr->>SearchTool: execute(query, course_name?, lesson_number?)
         SearchTool->>VectorStore: search(query, course_name, lesson_number)
-        
+
         alt course_name provided
             VectorStore->>ChromaDB: query course_catalog for matching course
             ChromaDB-->>VectorStore: course matches
             VectorStore->>VectorStore: _resolve_course_name()
         end
-        
+
         VectorStore->>VectorStore: _build_filter(course_title, lesson_number)
         VectorStore->>ChromaDB: query course_content with filters
         ChromaDB-->>VectorStore: matching document chunks
@@ -51,23 +51,23 @@ sequenceDiagram
         SearchTool->>SearchTool: _format_results() & store sources
         SearchTool-->>ToolMgr: formatted search results
         ToolMgr-->>AIGen: tool execution results
-        
+
         AIGen->>Claude: POST messages.create() with tool results
         Claude-->>AIGen: final response text
     else Claude answers directly
         Claude-->>AIGen: direct response text
     end
-    
+
     AIGen-->>RAGSystem: response text
     RAGSystem->>ToolMgr: get_last_sources()
     ToolMgr-->>RAGSystem: source list
     RAGSystem->>ToolMgr: reset_sources()
-    
+
     alt session_id exists
         RAGSystem->>SessionMgr: add_exchange(session_id, query, response)
         SessionMgr->>SessionMgr: Store in session history (max 2*MAX_HISTORY)
     end
-    
+
     RAGSystem-->>FastAPI: (response, sources)
     FastAPI-->>Frontend: JSON {answer, sources, session_id}
     Frontend->>Frontend: Display response & sources, re-enable input
@@ -77,12 +77,14 @@ sequenceDiagram
 ## Detailed Processing Steps
 
 ### 1. Frontend User Interaction
+
 - **Location**: `frontend/script.js:45-50`
 - User types query and clicks send button
 - Frontend disables input and shows typing indicator
 - Makes POST request to `/api/query` with query text and optional session_id
 
 ### 2. FastAPI Request Handling
+
 - **Location**: `backend/app.py:56-74`
 - Receives QueryRequest with query string and optional session_id
 - Creates new session if none provided via `rag_system.session_manager.create_session()`
@@ -90,6 +92,7 @@ sequenceDiagram
 - Returns QueryResponse with answer, sources, and session_id
 
 ### 3. RAG System Orchestration
+
 - **Location**: `backend/rag_system.py:102-140`
 - Retrieves conversation history from SessionManager if session exists
 - Creates prompt: `"Answer this question about course materials: {query}"`
@@ -99,6 +102,7 @@ sequenceDiagram
 - Returns response and sources tuple
 
 ### 4. AI Generation Process
+
 - **Location**: `backend/ai_generator.py:43-87`
 - Builds system prompt with conversation context if available
 - Prepares API parameters with tools configured for "auto" tool choice
@@ -107,6 +111,7 @@ sequenceDiagram
 - Returns final response text
 
 ### 5. Tool Execution Workflow
+
 - **Location**: `backend/ai_generator.py:89-135`
 - When Claude responds with `tool_use`, extracts tool calls
 - Calls `tool_manager.execute_tool()` for each tool requested
@@ -115,6 +120,7 @@ sequenceDiagram
 - Returns Claude's final response incorporating tool data
 
 ### 6. Course Search Tool Process
+
 - **Location**: `backend/search_tools.py:52-86`
 - Receives search parameters: query, optional course_name, optional lesson_number
 - Calls `vector_store.search()` with parameters
@@ -123,6 +129,7 @@ sequenceDiagram
 - Returns formatted search results or error message
 
 ### 7. Vector Store Search Process
+
 - **Location**: `backend/vector_store.py:61-100`
 - If course_name provided, resolves it against course catalog using semantic search
 - Builds filter dictionary for course title and/or lesson number
@@ -130,6 +137,7 @@ sequenceDiagram
 - Returns SearchResults object with documents, metadata, and distances
 
 ### 8. Session Management
+
 - **Location**: `backend/session_manager.py:37-56`
 - Stores user query and AI response as Message objects
 - Maintains conversation history up to `2 * MAX_HISTORY` messages (default 4 total)
@@ -137,6 +145,7 @@ sequenceDiagram
 - Creates unique session IDs with incrementing counter
 
 ### 9. Response Processing & Display
+
 - **Location**: `frontend/script.js` (inferred from app.py)
 - Frontend receives JSON response with answer, sources, and session_id
 - Displays AI response to user
@@ -158,6 +167,7 @@ sequenceDiagram
 ## Error Handling
 
 The system includes error handling at multiple levels:
+
 - FastAPI returns HTTP 500 with error details for exceptions
 - Vector store returns SearchResults with error messages for failed searches
 - Tool execution returns error strings for invalid tool calls
