@@ -15,3 +15,5 @@ No build system, package manager, or development tools have been configured yet.
 - Development server setup
 - Code architecture overview
 - always use mermaid output for diagrams in markdown files
+- Always add unit tests based on pytest for new functionality added.
+- Always update the specification of the functionality added / changed or removed in the markdown file functional_specification.md.
