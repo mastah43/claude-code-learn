@@ -1,5 +1,6 @@
-from typing import List, Dict, Optional
-from pydantic import BaseModel
+from typing import List, Dict, Optional, Set
+from pydantic import BaseModel, ConfigDict
+from enum import Enum
 
 class Lesson(BaseModel):
     """Represents a lesson within a course"""
@@ -20,3 +21,53 @@ class CourseChunk(BaseModel):
     course_title: str                   # Which course this chunk belongs to
     lesson_number: Optional[int] = None # Which lesson this chunk is from
     chunk_index: int                    # Position of this chunk in the document
+
+# GraphRAG Models
+
+class EntityType(str, Enum):
+    """Types of entities in the knowledge graph"""
+    CONCEPT = "concept"
+    PERSON = "person"
+    TECHNOLOGY = "technology"
+    TOOL = "tool"
+    METHOD = "method"
+    ORGANIZATION = "organization"
+    COURSE = "course"
+    LESSON = "lesson"
+
+class RelationType(str, Enum):
+    """Types of relationships in the knowledge graph"""
+    TEACHES = "teaches"
+    USES = "uses"
+    IMPLEMENTS = "implements"
+    PART_OF = "part_of"
+    RELATES_TO = "relates_to"
+    PREREQUISITE = "prerequisite"
+    EXAMPLE_OF = "example_of"
+    MENTIONED_IN = "mentioned_in"
+
+class Entity(BaseModel):
+    """Represents an entity in the knowledge graph"""
+    id: str                             # Unique identifier
+    name: str                          # Entity name/label
+    entity_type: EntityType            # Type of entity
+    description: Optional[str] = None  # Optional description
+    chunk_ids: Set[str] = set()       # Chunks where this entity appears
+    
+    model_config = ConfigDict(use_enum_values=True)
+
+class Relationship(BaseModel):
+    """Represents a relationship between entities"""
+    source_entity_id: str              # Source entity ID
+    target_entity_id: str              # Target entity ID
+    relation_type: RelationType        # Type of relationship
+    confidence: float = 1.0            # Confidence score (0-1)
+    chunk_ids: Set[str] = set()       # Chunks supporting this relationship
+    
+    model_config = ConfigDict(use_enum_values=True)
+
+class GraphData(BaseModel):
+    """Container for complete graph data"""
+    entities: Dict[str, Entity] = {}            # Entity ID -> Entity
+    relationships: List[Relationship] = []      # List of all relationships
+    chunk_entities: Dict[str, Set[str]] = {}   # Chunk ID -> Set of entity IDs

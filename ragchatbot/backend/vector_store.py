@@ -50,6 +50,7 @@ class VectorStore:
         # Create collections for different types of data
         self.course_catalog = self._create_collection("course_catalog")  # Course titles/instructors
         self.course_content = self._create_collection("course_content")  # Actual course material
+        self.graph_data = self._create_collection("graph_data")  # Knowledge graph data
     
     def _create_collection(self, name: str):
         """Create or get a ChromaDB collection"""
@@ -180,13 +181,15 @@ class VectorStore:
         )
     
     def clear_all_data(self):
-        """Clear all data from both collections"""
+        """Clear all data from collections"""
         try:
             self.client.delete_collection("course_catalog")
             self.client.delete_collection("course_content")
+            self.client.delete_collection("graph_data")
             # Recreate collections
             self.course_catalog = self._create_collection("course_catalog")
             self.course_content = self._create_collection("course_content")
+            self.graph_data = self._create_collection("graph_data")
         except Exception as e:
             print(f"Error clearing data: {e}")
     
@@ -264,4 +267,38 @@ class VectorStore:
             return None
         except Exception as e:
             print(f"Error getting lesson link: {e}")
+    
+    # Graph Data Storage Methods
+    
+    def store_graph_data(self, graph_json: str) -> None:
+        """Store knowledge graph data as JSON in ChromaDB"""
+        try:
+            # Store as a single document with the graph data
+            self.graph_data.add(
+                documents=["knowledge_graph"],  # Dummy document text
+                metadatas=[{"graph_json": graph_json}],
+                ids=["main_graph"]
+            )
+        except Exception as e:
+            print(f"Error storing graph data: {e}")
+    
+    def load_graph_data(self) -> Optional[str]:
+        """Load knowledge graph data from ChromaDB"""
+        try:
+            results = self.graph_data.get(ids=["main_graph"])
+            if results and 'metadatas' in results and results['metadatas']:
+                return results['metadatas'][0].get('graph_json')
+            return None
+        except Exception as e:
+            print(f"Error loading graph data: {e}")
+            return None
+    
+    def has_graph_data(self) -> bool:
+        """Check if knowledge graph data exists"""
+        try:
+            results = self.graph_data.get(ids=["main_graph"])
+            return bool(results and 'metadatas' in results and results['metadatas'])
+        except Exception as e:
+            print(f"Error checking graph data: {e}")
+            return False
     

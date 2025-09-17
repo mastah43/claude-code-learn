@@ -23,6 +23,11 @@ class Config:
     
     # Database paths
     CHROMA_PATH: str = "./chroma_db"  # ChromaDB storage location
+    
+    # GraphRAG settings
+    ENABLE_GRAPHRAG: bool = True     # Enable GraphRAG features
+    GRAPH_MAX_DEPTH: int = 2         # Maximum graph traversal depth
+    GRAPH_MAX_RELATED: int = 3       # Maximum related chunks to include
 
 config = Config()
 
